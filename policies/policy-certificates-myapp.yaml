@@ -1,0 +1,144 @@
+apiVersion: policy.open-cluster-management.io/v1
+kind: Policy
+metadata:
+  name: policy-certs-myapp
+  namespace: ocm-policies
+  annotations:
+    policy.open-cluster-management.io/standards: NIST-CSF
+    policy.open-cluster-management.io/categories: PR.DS DataSecurity
+    policy.open-cluster-management.io/controls: PR.DS-2 Data-in-transit
+spec:
+  remediationAction: enforce
+  disabled: false
+  policy-templates:
+    - objectDefinition:
+        apiVersion: policy.open-cluster-management.io/v1
+        kind: ConfigurationPolicy
+        metadata:
+          name: policy-cert-myapp-ss-issuer
+        spec:
+          remediationAction: enforce # the policy-template spec.remediationAction is overridden by the preceding parameter value for spec.remediationAction.
+          severity: low
+          namespaceSelector:
+            exclude: ["kube-*"]
+            include: ["myapp"]
+          object-templates:
+            - complianceType: musthave
+              objectDefinition:
+                apiVersion: cert-manager.io/v1
+                kind: Issuer
+                metadata:
+                  name: ss-sample-issuer
+                  namespace: myapp
+                spec:
+                  selfSigned: {}
+    - objectDefinition:
+        apiVersion: policy.open-cluster-management.io/v1
+        kind: ConfigurationPolicy
+        metadata:
+          name: policy-cert-myapp-ca-cert
+        spec:
+          remediationAction: enforce # the policy-template spec.remediationAction is overridden by the preceding parameter value for spec.remediationAction.
+          severity: low
+          namespaceSelector:
+            exclude: ["kube-*"]
+            include: ["myapp"]
+          object-templates:
+            - complianceType: musthave
+              objectDefinition:
+                apiVersion: cert-manager.io/v1
+                kind: Certificate
+                metadata:
+                  name: rsa-ca-sample-cert
+                  namespace: myapp
+                spec:
+                  secretName: rsa-ca-sample-secret
+                  isCA: true
+                  issuerRef:
+                    name: ss-sample-issuer
+                    kind: Issuer
+                  commonName: wap-master.fyre.test.com
+                  dnsNames:
+                  - wap-master.fyre.test.com
+    - objectDefinition:
+        apiVersion: policy.open-cluster-management.io/v1
+        kind: ConfigurationPolicy
+        metadata:
+          name: policy-cert-myapp-ca-issuer
+        spec:
+          remediationAction: enforce # the policy-template spec.remediationAction is overridden by the preceding parameter value for spec.remediationAction.
+          severity: low
+          namespaceSelector:
+            exclude: ["kube-*"]
+            include: ["myapp"]
+          object-templates:
+            - complianceType: musthave
+              objectDefinition:
+                apiVersion: cert-manager.io/v1
+                kind: Issuer
+                metadata:
+                  name: rsa-sample-tls
+                  namespace: myapp
+                spec:
+                  ca:
+                    secretName: rsa-ca-sample-secret
+    - objectDefinition:
+        apiVersion: policy.open-cluster-management.io/v1
+        kind: ConfigurationPolicy
+        metadata:
+          name: policy-cert-myapp-cert
+        spec:
+          remediationAction: enforce # the policy-template spec.remediationAction is overridden by the preceding parameter value for spec.remediationAction.
+          severity: low
+          namespaceSelector:
+            exclude: ["kube-*"]
+            include: ["myapp"]
+          object-templates:
+            - complianceType: musthave
+              objectDefinition:
+                apiVersion: cert-manager.io/v1
+                kind: Certificate
+                metadata:
+                  name: rsa-myapp-tls-1
+                  namespace: myapp
+                spec:
+                  secretName: rsa-myapp-tls-1
+                  issuerRef:
+                    name: rsa-sample-tls
+                    kind: Issuer
+                  commonName: wap-master.fyre.test.com
+                  duration: 8760h
+                  dnsNames:
+                  - wap-master.fyre.test.com
+                  ipAddresses:
+                  - 127.0.0.1
+---
+apiVersion: policy.open-cluster-management.io/v1
+kind: PlacementBinding
+metadata:
+  name: binding-policy-certs-myapp
+  namespace: ocm-policies
+placementRef:
+  name: placement-policy-certs-myapp
+  kind: PlacementRule
+  apiGroup: apps.open-cluster-management.io
+subjects:
+- name: policy-certs-myapp
+  kind: Policy
+  apiGroup: policy.open-cluster-management.io
+---
+apiVersion: apps.open-cluster-management.io/v1
+kind: PlacementRule
+metadata:
+  name: placement-policy-certs-myapp
+  namespace: ocm-policies
+spec:
+  clusterConditions:
+  - status: "True"
+    type: ManagedClusterConditionAvailable
+  clusterSelector:
+    matchExpressions:
+    - key: environment
+      operator: In
+      values:
+      - dev
