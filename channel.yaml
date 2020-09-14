@@ -5,4 +5,4 @@ metadata:
   namespace: open-cluster-management
 spec:
   type: GitHub
-  pathname: https://github.com/gparvin/ocm-deploy.git
+  pathname: https://github.com/gparvin/my-app.git
